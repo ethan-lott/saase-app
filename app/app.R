@@ -83,7 +83,8 @@ ui <- fluidPage(
                     ),
                     column(6, align="center",
                         h4("Statistical Significance"),
-                        verbatimTextOutput("test_results")
+                        verbatimTextOutput("test_results"),
+                        div(style = "text-align: left;", uiOutput("q_list"))
                     )
                 )
             )
@@ -183,6 +184,10 @@ server <- function(input, output) {
             select(all_of(qCol)) |>
             mutate(Response = factor(get(qCol), levels = if (substr(qCol,1,1) != "Q") grit_response_order else q_response_order)) |>
             count(Response, .drop = FALSE)
+        
+        # Calculate total responses (n) and average score
+        n <- sum(df_filt$n, na.rm = TRUE)
+        
         ggplot(df_filt, aes(x = "", y = n, fill = Response)) + 
             geom_bar(stat = "identity") + 
             coord_polar("y", start = 0) +
@@ -191,7 +196,10 @@ server <- function(input, output) {
                 direction = -1
             ) +
             labs(x = "", y = "") +
-            theme_void() 
+            theme_void() +
+            annotate("text", x = 0, y = max(df_filt$n) * 0.5, 
+                     label = paste0("n = ", n),
+                     size = 5, color = "black", fontface = "bold")
     })
     
     # Display data currently allowed by filters
@@ -206,6 +214,11 @@ server <- function(input, output) {
     # ANOVA Test Results
     output$test_results <- renderText({
         stat_qs <- topic_qs[[stat_topic()]]
+        
+        output$q_list <- renderUI({
+            HTML(paste0(
+            "\n\n<strong>Questions in this category:</strong><br>• ",
+            paste(ors_qs[stat_qs], collapse = "<br>• ")))})
         
         df <- ors_pde_num |>
             select(all_of(stat_qs), stat_demo()) |>
