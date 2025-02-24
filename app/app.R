@@ -77,11 +77,11 @@ ui <- fluidPage(
                 ),
                 mainPanel(
                     style="min-height: 80vh;",
-                    column(7, align="center",
+                    column(6, align="center",
                         h4(textOutput("demo_title")),
                         plotOutput("demo_plot", height="70vh")
                     ),
-                    column(5, align="center",
+                    column(6, align="center",
                         h4("Statistical Significance"),
                         verbatimTextOutput("test_results")
                     )
@@ -104,11 +104,10 @@ server <- function(input, output) {
     )
     
     # Render demographics plot
+    stat_topic <- eventReactive(input$stat_load, input$stat_topic)
+    stat_demo <- eventReactive(input$stat_load, input$stat_demo)
     output$demo_plot <- renderPlot({
-        stat_topic <- eventReactive(input$stat_load, input$stat_topic)
-        stat_demo <- eventReactive(input$stat_load, input$stat_demo)
         stat_qs <- topic_qs[[stat_topic()]]
-        
         df_summary <- ors_pde_num |>
             select(all_of(stat_qs), stat_demo()) |>
             group_by(get(stat_demo())) |>
@@ -160,11 +159,12 @@ server <- function(input, output) {
         if (filt != "None") {selected_filts[[filt]] <- input$filt_vals}
     })
     
+    q <- eventReactive(input$free_load, input$free_q)
+    
     # Update data frame used for plotting when needed.
     filtered_data <- eventReactive(input$free_load, {
-        q <- input$free_q
         df_filt <- ors_pde_raw |>
-            select(all_of(unname(ors_kws[q])), names(selected_filts)) |>
+            select(all_of(unname(ors_kws[q()])), names(selected_filts)) |>
             filter(
                 STUDENT_POPULATION_DESC %in% selected_filts[["STUDENT_POPULATION_DESC"]],
                 FIRST_GENERATION_IND %in% selected_filts[["FIRST_GENERATION_IND"]],
@@ -177,7 +177,6 @@ server <- function(input, output) {
     
     # Render pie chart for a single question
     output$free_pie <- renderPlot({
-        q <- eventReactive(input$free_load, input$free_q)
         qCol <- unname(ors_kws[q()])
         output$free_title <- renderText({ors_qs[qCol]})
         df_filt <- filtered_data() |>
@@ -204,6 +203,18 @@ server <- function(input, output) {
         HTML(paste(txt,"<br>"))
     })
 
+    # ANOVA Test Results
+    output$test_results <- renderText({
+        stat_qs <- topic_qs[[stat_topic()]]
+        
+        df <- ors_pde_num |>
+            select(all_of(stat_qs), stat_demo()) |>
+            mutate(avg = rowMeans(across(all_of(stat_qs))))
+        
+        formula <- as.formula(paste("avg ~", stat_demo()))
+        res <- summary(aov(formula, data = df), )
+        capture.output(print(res)) |> paste(collapse = "\n")
+    })
 }
 
 # Run the application 

@@ -9,7 +9,6 @@ library(patchwork)
 # Import data and join tables.
 ors_raw <- read_excel("data/or_survey_sim_final_2023-11-29.xlsx")
 pde_raw <- read_excel("data/pde_sim_final_2023-11-29.xlsx")
-ors_pde_raw <- merge(ors_raw, pde_raw)
 
 # Map text responses to ordinal data.
 num_map <- c(
@@ -29,6 +28,10 @@ chr_map <- c(
     "Y" = "Yes",
     "N" = "No"
 )
+
+
+ors_pde_raw <- merge(ors_raw, pde_raw) |>
+    mutate(across(FIRST_GENERATION_IND, ~ recode(.x, !!!chr_map)))
 
 ors_num <- ors_raw
 ors_num[-1] <- ors_num[-1] |>
